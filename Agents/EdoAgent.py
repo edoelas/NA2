@@ -27,6 +27,9 @@ class EdoAgent(AgentInterface):
         ]
         self.traded = False
 
+    def get_mat(self):
+        return materials_to_mat(self.hand.resources)
+
     # TODO: P1 
     def on_trade_offer(self, board_instance, incoming_trade_offer=TradeOffer(), player_making_offer=int):
         # print(building_costs)
@@ -62,15 +65,14 @@ class EdoAgent(AgentInterface):
         elif self.goals[0] == "build_town" and not self.board.valid_town_nodes(self.id):
             self.goals.insert(0, "build_road")
 
-        if len(self.development_cards_hand.check_hand()) and random.randint(0, 1):
-            return self.development_cards_hand.select_card_by_id(self.development_cards_hand.hand[0].id)
+        # if len(self.development_cards_hand.check_hand()) and random.randint(0, 1):
+        #     return self.development_cards_hand.select_card_by_id(self.development_cards_hand.hand[0].id)
         return None
 
     # DONE
     def on_having_more_than_7_materials_when_thief_is_called(self):
         excess_count_rule = int(floor(self.hand.get_total()/2))
-        excess = excess_materials(self.hand.resources, self.goals[:1])
-        excess = material_to_list(excess)
+        excess = excess_materials(self.get_mat(), self.goals[:1])
         excess_count_excess = sum(excess)
         for i in range(min(excess_count_rule, excess_count_excess)):
             max_index = excess.index(max(excess))
@@ -86,8 +88,8 @@ class EdoAgent(AgentInterface):
         return {'terrain': terrain, 'player': player}
 
     def on_turn_end(self):
-        if len(self.development_cards_hand.check_hand()) and random.randint(0, 1):
-            return self.development_cards_hand.select_card_by_id(self.development_cards_hand.hand[0].id)
+        # if len(self.development_cards_hand.check_hand()) and random.randint(0, 1):
+        #     return self.development_cards_hand.select_card_by_id(self.development_cards_hand.hand[0].id)
         return None
 
     def on_commerce_phase(self):
@@ -106,23 +108,20 @@ class EdoAgent(AgentInterface):
         # if self.hand.resources.wool >= 4:
         #     return {'gives': MaterialConstants.WOOL, 'receives': MaterialConstants.CEREAL}
         # return None
-
-        excess, needed = create_exchange(self.hand.resources, self.goals[:1])
-        if sum(material_to_list(excess)) == 0 or sum(material_to_list(needed)) == 0:
+        excess, needed = create_exchange(self.get_mat(), self.goals[:1])
+        if sum(excess) == 0 or sum(needed) == 0:
             return None
         
-        excess = material_to_list(excess)
-        excess_index = wighted_index_choice(excess)
-        gives = index_to_list(excess_index)
+        excess_index = weighted_material_choice(excess)
+        gives = index_to_mat(excess_index)
         gives = Materials(*gives)
 
-        needed = material_to_list(needed)
-        needed_index = wighted_index_choice(needed)
-        receives = index_to_list(needed_index)
+        needed_index = weighted_material_choice(needed)
+        receives = index_to_mat(needed_index)
         receives = Materials(*receives)
 
         self.traded = True
-        return TradeOffer(receives, gives)
+        return TradeOffer(gives, receives)
 
     def on_build_phase(self, board_instance):
         self.board = board_instance

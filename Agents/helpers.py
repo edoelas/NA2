@@ -49,33 +49,40 @@ goals_costs = {
 
 # List helpers
 
-def msub(m1: Mat, m2: Mat) -> Mat: # element by element subtraction
+def msub(m1: Mat, m2: Mat) -> Mat: 
+    """ Element by element subtraction """ 
     return Mat(*(x - y for x, y in zip(m1, m2)))
 
-def madd(m1: Mat, m2: Mat) -> Mat: # element by element addition
+def madd(m1: Mat, m2: Mat) -> Mat:
+    """ Element by element addition """	
     return Mat(*(x + y for x, y in zip(m1, m2)))
 
-def mpos(m: Mat) -> Mat: # return positives only
+def mpos(m: Mat) -> Mat:
+    """ filter non-positive values"""
     return Mat(*(x if x > 0 else 0 for x in m))
 
-# def index_to_list(index: int, len: int = 5, value: int = 1):
-#     """
-#     Converts an index to a list with the value at the index.
-#     """
-#     return [value if i == index else 0 for i in range(len)]
+def index_to_mat(index: int, value: int = 1) -> Mat:
+    """
+    Converts an index to a Mat object.
+    """
+    return Mat(*[value if i == index else 0 for i in range(5)])
 
 # Materials helpers
 
-def materials_to_mat(materials: Materials) -> Mat: # Converts a Materials object to a Mat object.
+def materials_to_mat(materials: Materials) -> Mat:
+    """ Converts a Materials object to a Mat object. """
     return Mat(materials.cereal, materials.mineral, materials.clay, materials.wood, materials.wool)
 
-def mat_to_materials(mat: Mat) -> Materials: # Converts a Mat object to a Materials object.
+def mat_to_materials(mat: Mat) -> Materials:
+    """ Converts a Mat object to a Materials object. """
     return Materials(*mat)
 
-def missing_materials(owned: Mat, wanted: Mat) -> Mat: # Calculates the missing materials based on the owned materials and the desired materials.
+def missing_materials(owned: Mat, wanted: Mat) -> Mat:
+    """ Calculates the missing materials based on the owned materials and the desired materials. """
     return mpos(msub(wanted, owned))
 
-def excess_materials(owned: Mat, goal_list: List[str]) -> Mat: # Calculates the excess materials based on the owned materials and the desired goals.
+def excess_materials(owned: Mat, goal_list: List[str]) -> Mat:
+    """ Calculates the excess materials based on the owned materials and the desired goals. """
     excess = owned
     for goal in goal_list:
         goal_materials = goals_costs[goal]
@@ -83,28 +90,29 @@ def excess_materials(owned: Mat, goal_list: List[str]) -> Mat: # Calculates the 
 
     return mpos(excess)
 
+def needed_materials(goal_list: List[str]) -> Mat:
+    """ Calculates the needed materials based on the desired goals. """	
+    wanted = Mat(0, 0, 0, 0, 0)
+    for goal in goal_list:
+        wanted = madd(wanted, goals_costs[goal])
+    return wanted
+
 # exchange helpers
 
-def weighted_material_choice(mat: Mat) -> int: # Chooses an index based on the materials
+def weighted_material_choice(mat: Mat) -> int:
+    """ Chooses an index based on the materials. """
     list = [0] * mat[0] + [1] * mat[1] + [2] * mat[2] + [3] * mat[3] + [4] * mat[4]
     return random.choice(list)
 
-def create_exchange(owned: Mat, goal_list: List[str]):
-    """
-    Creates a trade offer based on the owned materials and the desired goals.
-    """
+def create_exchange(owned: Mat, goal_list: List[str]) -> Tuple[Mat, Mat]:
+    """ Creates a trade offer based on the owned materials and the desired goals. """
     excess = excess_materials(owned, goal_list)
-    wanted = [0, 0, 0, 0, 0]
-    for goal in goal_list:
-        goal = material_to_list(goals_costs[goal])
-        wanted = addl(wanted, goal)
-    needed = missing_materials(owned, Materials(*wanted))
-    return excess, needed
+    needed = needed_materials(goal_list)
+    missing = missing_materials(owned, needed)
+    return excess, missing
 
-
-def goal_distance(owned: Materials, goal: str):
-    """
-    Calculates the distance to the goals based on the owned materials and the desired goal.
-    """
-    needed = missing_materials(owned, goals_costs[goal])
-    return sum(material_to_list(needed))
+def goal_distance(owned: Mat, goal_list: List[str]) -> int:
+    """ Calculates the distance to the goal based on the owned materials and the desired goals. """
+    needed = needed_materials(goal_list)
+    missing = missing_materials(owned, needed)
+    return sum(needed)

@@ -28,7 +28,7 @@ class GameManager:
         self.development_cards_deck.shuffle_deck()
         self.turn_manager = TurnManager()
         self.commerce_manager = CommerceManager()
-        self.agent_manager = AgentManager(for_test, command_line=True)
+        self.agent_manager = AgentManager(for_test, command_line=command_line)
         return
 
     def reset_game_values(self):
