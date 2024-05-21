@@ -16,8 +16,8 @@ class AgentManager:
 
     players = []
 
-    def __init__(self, for_test=False):
-        if not for_test:
+    def __init__(self, for_test=False, command_line=True):
+        if not for_test and command_line:
             self.first_agent_class = self.import_agent_class_from_input('first')
             self.second_agent_class = self.import_agent_class_from_input('second')
             self.third_agent_class = self.import_agent_class_from_input('third')
