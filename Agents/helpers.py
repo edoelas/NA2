@@ -1,9 +1,10 @@
 from Classes.Constants import *
 from Classes.Materials import Materials
-from typing import List, Tuple
+from typing import List, Tuple, Set, FrozenSet
 import random
-from collections import namedtuple
 from typing import NamedTuple
+from functools import reduce
+from Classes.Board import Board
 
 class Mat(NamedTuple):
     ce: int
@@ -18,6 +19,12 @@ class Mat(NamedTuple):
         mls = [str(t[0]).rjust(2)+t[1] for t in material_tuples]
         return " ".join(mls)
 
+class Road(NamedTuple):
+    vertex: FrozenSet[int]
+    owner: int
+
+    def __str__(self):
+        return f"{self.owner}: {self.vertex}"
 
 TOWN = BuildConstants.TOWN
 CITY = BuildConstants.CITY
@@ -46,7 +53,6 @@ goals_costs = {
 }
 
 
-
 # List helpers
 
 def msub(m1: Mat, m2: Mat) -> Mat: 
@@ -67,6 +73,7 @@ def index_to_mat(index: int, value: int = 1) -> Mat:
     """
     return Mat(*[value if i == index else 0 for i in range(5)])
 
+
 # Materials helpers
 
 def materials_to_mat(materials: Materials) -> Mat:
@@ -83,19 +90,14 @@ def missing_materials(owned: Mat, wanted: Mat) -> Mat:
 
 def excess_materials(owned: Mat, goal_list: List[str]) -> Mat:
     """ Calculates the excess materials based on the owned materials and the desired goals. """
-    excess = owned
-    for goal in goal_list:
-        goal_materials = goals_costs[goal]
-        excess = msub(excess, goal_materials)
-
+    excess = reduce(msub, [goals_costs[goal] for goal in goal_list], owned)
     return mpos(excess)
 
 def needed_materials(goal_list: List[str]) -> Mat:
     """ Calculates the needed materials based on the desired goals. """	
-    wanted = Mat(0, 0, 0, 0, 0)
-    for goal in goal_list:
-        wanted = madd(wanted, goals_costs[goal])
+    wanted = reduce(madd, [goals_costs[goal] for goal in goal_list], Mat(0, 0, 0, 0, 0))
     return wanted
+
 
 # exchange helpers
 
@@ -115,4 +117,19 @@ def goal_distance(owned: Mat, goal_list: List[str]) -> int:
     """ Calculates the distance to the goal based on the owned materials and the desired goals. """
     needed = needed_materials(goal_list)
     missing = missing_materials(owned, needed)
-    return sum(needed)
+    return sum(missing)
+
+
+# Map helpers
+def get_roads(board: Board, player_id = None) -> Set[Road]:
+    """ Returns a list of all roads on the board. """
+    nodes = board.nodes
+    roads = set()
+    for node in nodes:
+        roads.update({
+            Road(frozenset([node["id"],road["node_id"]]), road["player_id"])
+            for road
+            in node["roads"]
+            if road["player_id"] == player_id or player_id == None
+        })
+    return roads
