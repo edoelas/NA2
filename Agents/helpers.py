@@ -5,6 +5,7 @@ import random
 from typing import NamedTuple
 from functools import reduce
 from Classes.Board import Board
+from itertools import chain
 
 class Mat(NamedTuple):
     ce: int
@@ -121,15 +122,44 @@ def goal_distance(owned: Mat, goal_list: List[str]) -> int:
 
 
 # Map helpers
-def get_roads(board: Board, player_id = None) -> Set[Road]:
+def get_roads(board: Board, player_id: int) -> Set[frozenset[int]]:
     """ Returns a list of all roads on the board. """
     nodes = board.nodes
     roads = set()
     for node in nodes:
-        roads.update({
-            Road(frozenset([node["id"],road["node_id"]]), road["player_id"])
-            for road
-            in node["roads"]
-            if road["player_id"] == player_id or player_id == None
-        })
+        roads.update({frozenset((node["id"], road["node_id"])) for road in node["roads"] if road["player_id"] == player_id})
     return roads
+
+def get_length(roads: Set[frozenset[int]], node_id: int) -> int:
+    """ Returns the longest road starting from a node. """
+    if len(roads) == 0:
+        return 0
+
+    next_roads = {road for road in roads if node_id in road}
+    if len(next_roads) == 0:
+        return 0
+
+    results = []
+    for road in next_roads:
+        other_node, *_ = road - {node_id}
+        new_roads = roads - {road}
+        results.append(1 + get_length(new_roads, other_node))
+    
+    return max(results)
+
+    
+def get_road_ends(board: Board, player_id:int) -> List[int]:
+    """ Returns an ordered list of all road ends on the board. The order is based on the longest road."""
+    roads = get_roads(board, player_id)
+    ends = list(set(chain(*roads)))
+    ends.sort(key=lambda x: -get_length(roads, x))
+    return ends
+
+def get_adjacent_road(board: Board, node_id: int, player_id: int) -> List:
+    """ Returns a list of all adjacent nodes to a node. """
+    adjacent_nodes = board.__get_adjacent_nodes__(node_id)
+    adjacent_roads = [{'starting_node': node_id, 'finishing_node': node} for node in adjacent_nodes]
+    adjacent_roads += [{'starting_node': node, 'finishing_node': node_id} for node in adjacent_nodes]
+    valid_roads = board.valid_road_nodes(player_id)
+    adjacent_valid_roads = [road for road in adjacent_roads if road in valid_roads]
+    return adjacent_valid_roads

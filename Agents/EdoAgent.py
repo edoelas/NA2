@@ -114,14 +114,15 @@ class EdoAgent(AgentInterface):
         
         excess_index = weighted_material_choice(excess)
         gives = index_to_mat(excess_index)
-        gives = Materials(*gives)
+        _gives = Materials(*gives)
 
         needed_index = weighted_material_choice(needed)
         receives = index_to_mat(needed_index)
-        receives = Materials(*receives)
+        _receives = Materials(*receives)
 
         self.traded = True
-        return TradeOffer(gives, receives)
+        # print(f"({self.turn_counter}) {self.goals[0]}: {gives} -> {receives}")
+        return TradeOffer(_receives, _gives)
 
     def on_build_phase(self, board_instance):
         self.board = board_instance
@@ -146,16 +147,18 @@ class EdoAgent(AgentInterface):
                 city_node = random.randint(0, len(valid_nodes) - 1)
                 self.goals.remove(goal)
                 return {'building': BuildConstants.CITY, 'node_id': valid_nodes[city_node]}
-            
+        
+        # TODO: se puede mejorar escogiendo en base a los recursos
         elif goal == "build_road" and self.hand.resources.has_this_more_materials('road'):
-            valid_nodes = self.board.valid_road_nodes(self.id)
-            # TODO: mejorar selección
-            if len(valid_nodes):
-                road_node = random.randint(0, len(valid_nodes) - 1)
-                self.goals.remove(goal)
-                return {'building': BuildConstants.ROAD,
-                        'node_id': valid_nodes[road_node]['starting_node'],
-                        'road_to': valid_nodes[road_node]['finishing_node']}
+            road_ends = get_road_ends(self.board, self.id)
+            for end in road_ends:
+                adjacent_roads = get_adjacent_road(self.board, end, self.id)
+                for adjacent in adjacent_roads:
+                    self.goals.remove(goal)
+                    return {'building': BuildConstants.ROAD,
+                            'node_id': adjacent['starting_node'],
+                            'road_to': adjacent['finishing_node']}
+
 
         elif goal == "buy_card" and self.hand.resources.has_this_more_materials('card'):
             self.goals.remove(goal)
