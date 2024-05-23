@@ -122,7 +122,7 @@ def goal_distance(owned: Mat, goal_list: List[str]) -> int:
 
 
 # Map helpers
-def get_roads(board: Board, player_id: int) -> Set[frozenset[int]]:
+def get_roads(board: Board, player_id: int) -> Set[FrozenSet[int]]:
     """ Returns a list of all roads on the board. """
     nodes = board.nodes
     roads = set()
@@ -130,7 +130,7 @@ def get_roads(board: Board, player_id: int) -> Set[frozenset[int]]:
         roads.update({frozenset((node["id"], road["node_id"])) for road in node["roads"] if road["player_id"] == player_id})
     return roads
 
-def get_length(roads: Set[frozenset[int]], node_id: int) -> int:
+def get_length(roads: Set[FrozenSet[int]], node_id: int) -> int:
     """ Returns the longest road starting from a node. """
     if len(roads) == 0:
         return 0
@@ -148,7 +148,7 @@ def get_length(roads: Set[frozenset[int]], node_id: int) -> int:
     return max(results)
 
     
-def get_road_ends(board: Board, player_id:int) -> List[int]:
+def get_road_ends(board: Board, player_id: int) -> List[int]:
     """ Returns an ordered list of all road ends on the board. The order is based on the longest road."""
     roads = get_roads(board, player_id)
     ends = list(set(chain(*roads)))
