@@ -6,6 +6,9 @@ from Classes.TradeOffer import TradeOffer
 from Interfaces.AgentInterface import AgentInterface
 from math import floor
 from .helpers import *
+from math import log2
+from Classes.Constants import DevelopmentCardConstants as Dcc
+import itertools
 
 class EdoAgent(AgentInterface):
     """
@@ -18,7 +21,10 @@ class EdoAgent(AgentInterface):
         self.goals = [ # lista con orden de prioridades de los objetivos inmediatos
             "build_town",
             "build_town",
-            "build_town",
+            "buy_card",
+            "buy_card",
+            "buy_card",
+            "buy_card",
             "build_town",
             "build_city",
             "build_city",
@@ -31,43 +37,45 @@ class EdoAgent(AgentInterface):
     def get_mat(self):
         return materials_to_mat(self.hand.resources)
 
+
+
     # TODO: P1 
     def on_trade_offer(self, board_instance, incoming_trade_offer=TradeOffer(), player_making_offer=int):
-        # print(building_costs)
-        
-        # answer = random.randint(0, 2)
-        # if answer:
-        #     if answer == 2:
-        #         gives = Materials(random.randint(0, self.hand.resources.cereal),
-        #                           random.randint(0, self.hand.resources.mineral),
-        #                           random.randint(0, self.hand.resources.clay),
-        #                           random.randint(0, self.hand.resources.wood),
-        #                           random.randint(0, self.hand.resources.wool))
-        #         receives = Materials(random.randint(0, self.hand.resources.cereal),
-        #                              random.randint(0, self.hand.resources.mineral),
-        #                              random.randint(0, self.hand.resources.clay),
-        #                              random.randint(0, self.hand.resources.wood),
-        #                              random.randint(0, self.hand.resources.wool))
-        #         return TradeOffer(gives, receives)
-        #     else:
-        #         return True
-        # else:
-            return False
+        # goal_index = 1
+        # excess, needed = create_exchange(self.get_mat(), self.goals[:goal_index])
+        # while sum(excess) == 0 or sum(needed) == 0:
+        #     goal_index += 1
+        #     excess, needed = create_exchange(self.get_mat(), self.goals[:goal_index])
 
+        return False
+
+    # DONE
     def on_turn_start(self):
         self.traded = False
         self.turn_counter += 1
 
         if not self.goals:
             self.goals = ["build_city"]
-
         if self.goals[0] == "build_city" and not self.board.valid_city_nodes(self.id):
             self.goals.insert(0, "build_town")
         elif self.goals[0] == "build_town" and not self.board.valid_town_nodes(self.id):
             self.goals.insert(0, "build_road")
 
-        # if len(self.development_cards_hand.check_hand()) and random.randint(0, 1):
-        #     return self.development_cards_hand.select_card_by_id(self.development_cards_hand.hand[0].id)
+        # If thief is on a terrain with a town, play a knight card
+        town_nodes = get_town_nodes(self.board, self.id)
+        thief_nodes = get_thief_nodes(self.board)
+        if set(town_nodes).intersection(set(thief_nodes)):
+            card = get_development_card(self.development_cards_hand.check_hand(), Dcc.KNIGHT_EFFECT)
+            if card:
+                return self.development_cards_hand.select_card_by_id(card)
+            elif self.goals[0] != "buy_card" and random.randint(0, 4) == 0:
+                self.goals.insert(0, "buy_card")
+
+        for effect in [Dcc.ROAD_BUILDING_EFFECT, Dcc.YEAR_OF_PLENTY_EFFECT, Dcc.MONOPOLY_EFFECT]:
+            card = get_development_card(self.development_cards_hand.check_hand(), effect)
+            if card:
+                return self.development_cards_hand.select_card_by_id(card)
+
         return None
 
     # DONE
@@ -80,35 +88,29 @@ class EdoAgent(AgentInterface):
             self.hand.remove_material(max_index, 1)
         return self.hand
 
+    # DONE
     def on_moving_thief(self):
-        terrain = random.randint(0, 18)
-        player = -1
-        for node in self.board.terrain[terrain]['contacting_nodes']:
-            if self.board.nodes[node]['player'] != -1:
-                player = self.board.nodes[node]['player']
-        return {'terrain': terrain, 'player': player}
+        town_nodes = get_town_nodes(self.board, self.id)
+        terrain_nodes = [get_adjacent_terrain(self.board, node) for node in town_nodes]
+        others_terrain = set(range(18)) - set(itertools.chain(*terrain_nodes))
+        return {'terrain': random.choice(list(others_terrain)), 'player': random.choice(list({0,1,2,3}-{self.id}))}
 
+    # DONE
     def on_turn_end(self):
-        # if len(self.development_cards_hand.check_hand()) and random.randint(0, 1):
-        #     return self.development_cards_hand.select_card_by_id(self.development_cards_hand.hand[0].id)
+        card = get_development_card(self.development_cards_hand.check_hand(), Dcc.ROAD_BUILDING_EFFECT)
+        if card:
+            return self.development_cards_hand.select_card_by_id(card)
         return None
 
+    #TODO: mejorar ofertas
     def on_commerce_phase(self):
-
         # TODO: comercion con banca
-        # if self.hand.resources.cereal >= 4:
-        #     return {'gives': MaterialConstants.CEREAL, 'receives': MaterialConstants.MINERAL}
-        # if self.hand.resources.mineral >= 4:
-        #     return {'gives': MaterialConstants.MINERAL, 'receives': MaterialConstants.CEREAL}
-        # if self.hand.resources.clay >= 4:
-        #     return {'gives': MaterialConstants.CLAY, 'receives': MaterialConstants.CEREAL}
-        # if self.hand.resources.wood >= 4:
-        #     return {'gives': MaterialConstants.WOOD, 'receives': MaterialConstants.CEREAL}
-        # if self.hand.resources.wool >= 4:
-        #     return {'gives': MaterialConstants.WOOL, 'receives': MaterialConstants.CEREAL}
-        # return None
-        excess, needed = create_exchange(self.get_mat(), self.goals[:1])
-        if sum(excess) == 0 or sum(needed) == 0:
+        for i in range(len(self.goals)):
+            excess, needed = create_exchange(self.get_mat(), self.goals[:i])
+            if sum(needed) > 0 and sum(excess) > 0:
+                break
+        
+        if sum(needed) == 0 or sum(excess) == 0:
             return None
         
         excess_index = weighted_material_choice(excess)
@@ -164,38 +166,50 @@ class EdoAgent(AgentInterface):
 
         return None
 
-    # TODO: comprabar recursos de la primera selección
+    #DONE
     def on_game_start(self, board_instance):
         free = get_free_nodes(board_instance)
-        sorted_free = sorted(free, key=lambda x: get_node_resources(board_instance, x), reverse=True)
+        current_town_nodes = get_town_nodes(board_instance, self.id)
+        current_resources = list(Mat(0, 0, 0, 0, 0))
+        if current_town_nodes:
+            current_resources = reduce(lambda x, y: madd(x,y), [get_node_resources(board_instance, node) for node in current_town_nodes])
+        node_resources = [get_node_resources(board_instance, node) for node in free]
+        added_node_resources = [madd(x, current_resources) for x in node_resources]
+        log_node_resources = [sum([log2(x+1) for x in node]) for node in added_node_resources]
+        sorted_free = [x for _, x in sorted(zip(log_node_resources, free), key=lambda pair: pair[0])]
+        # sorted_free = [x for _, x in sorted(zip(node_resources, free), key=lambda pair: pair[0])]
         adjacent = board_instance.__get_adjacent_nodes__(sorted_free[0])
         return (sorted_free[0], adjacent[0])
 
+    #DONE
     def on_monopoly_card_use(self):
-        material = random.randint(0, 4)
-        return material
+        excess, needed = create_exchange(self.get_mat(), self.goals)
+        max_index = needed.index(max(needed))
+        return max_index
 
+    # TODO:
     # noinspection DuplicatedCode
     def on_road_building_card_use(self):
-        valid_nodes = self.board.valid_road_nodes(self.id)
-        if len(valid_nodes) > 1:
-            while True:
-                road_node = random.randint(0, len(valid_nodes) - 1)
-                road_node_2 = random.randint(0, len(valid_nodes) - 1)
-                if road_node != road_node_2:
-                    return {'node_id': valid_nodes[road_node]['starting_node'],
-                            'road_to': valid_nodes[road_node]['finishing_node'],
-                            'node_id_2': valid_nodes[road_node_2]['starting_node'],
-                            'road_to_2': valid_nodes[road_node_2]['finishing_node'],
-                            }
-        elif len(valid_nodes) == 1:
-            return {'node_id': valid_nodes[0]['starting_node'],
-                    'road_to': valid_nodes[0]['finishing_node'],
-                    'node_id_2': None,
-                    'road_to_2': None,
-                    }
-        return None
+        # road_ends = get_road_ends(self.board, self.id)
+        # for end in road_ends:
+        #     adjacent_roads = get_adjacent_road(self.board, end, self.id)
+        #     adjacent = random.choice(adjacent_roads)
+        # return {
+        #     'node_id': adjacent['starting_node'], 'road_to': adjacent['finishing_node'],
+        #     'node_id_2': adjacent['starting_node'], 'road_to_2': adjacent['finishing_node']
+        # }
+    return None
 
+    #DONE
     def on_year_of_plenty_card_use(self):
-        material, material2 = random.randint(0, 4), random.randint(0, 4)
-        return {'material': material, 'material_2': material2}
+        for g in range(len(self.goals)):
+            excess, needed = create_exchange(self.get_mat(), self.goals[:g])
+            if sum(needed) >=2:
+                break
+        
+        needed = list(needed)
+        m1 = needed.index(max(needed))
+        needed[m1] = 0
+        m2 = needed.index(max(needed))
+
+        return {'material': m1, 'material_2': m2}

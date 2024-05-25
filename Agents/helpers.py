@@ -195,8 +195,6 @@ def get_node_resources(board: Board, node: int) -> List[float]:
     # print("adjacent", adjacent, "resources", resources, "dices", dices)
     odds = [dice_odds[dice] for dice in dices]
 
-
-
     terrain = [0., 0., 0., 0., 0.]
     for resource, odd in zip(resources, odds):
         if resource == TerrainConstants.DESERT:
@@ -205,4 +203,30 @@ def get_node_resources(board: Board, node: int) -> List[float]:
 
     return terrain
 
-    
+def get_town_nodes(board: Board, player_id: int) -> List[int]:
+    """ Returns a list of all town nodes on the board. """
+    nodes = board.nodes
+    town_nodes = []
+    for node in nodes:
+        if node["player"] == player_id:
+            town_nodes.append(node["id"])
+            if node["has_city"] == True:
+                town_nodes.append(node["id"])
+    return town_nodes
+
+def get_thief_nodes(board: Board) -> List[int]:
+    """ Returns a list of all nodes with the thief on the board. """
+    for terrain in board.terrain:
+        if terrain["has_thief"] and terrain["terrain_type"] == TerrainConstants.DESERT:
+            return terrain["contacting_nodes"]
+    return []
+
+
+# development card helpers
+
+def get_development_card(hand, effect) -> int | None:
+    """ Returns the index of the first card of a certain kind in a hand. """
+    for card in hand:
+        if card["effect"] == effect:
+            return card["id"]
+    return None
