@@ -38,6 +38,8 @@ CLAY = MaterialConstants.CLAY
 WOOD = MaterialConstants.WOOD
 WOOL = MaterialConstants.WOOL
 
+
+
 # cereal, mineral, clay, wood, wool
 building_costs = {
     TOWN: Mat(1, 0, 1, 1, 1), # {CEREAL: 1, CLAY: 1, WOOD: 1, WOOL: 1},
@@ -51,6 +53,15 @@ goals_costs = {
     "build_city": building_costs[CITY],
     "build_road": building_costs[ROAD],
     "buy_card": building_costs[CARD]
+}
+
+dice_odds = {
+    7: 6,
+    6: 5, 8: 5,
+    5: 4, 9: 4,
+    4: 3, 10: 3,
+    3: 2, 11: 2,
+    2: 1, 12: 1
 }
 
 
@@ -121,7 +132,7 @@ def goal_distance(owned: Mat, goal_list: List[str]) -> int:
     return sum(missing)
 
 
-# Map helpers
+# Road helpers
 def get_roads(board: Board, player_id: int) -> Set[FrozenSet[int]]:
     """ Returns a list of all roads on the board. """
     nodes = board.nodes
@@ -163,3 +174,35 @@ def get_adjacent_road(board: Board, node_id: int, player_id: int) -> List:
     valid_roads = board.valid_road_nodes(player_id)
     adjacent_valid_roads = [road for road in adjacent_roads if road in valid_roads]
     return adjacent_valid_roads
+
+
+# Node helpers
+def get_free_nodes(board: Board) -> List[int]:
+    """ Returns a list of all free nodes on the board. """
+    nodes = board.nodes
+    free_nodes = [node["id"] for node in nodes if node["player"] == -1]
+    return free_nodes
+
+def get_adjacent_terrain(board: Board, node: int) -> List[int]:
+    """ Returns a list of all adjacent terrains to a list of nodes. """
+    return board.__get_contacting_terrain__(node)
+
+def get_node_resources(board: Board, node: int) -> List[float]:
+    """ Returns a list of all resources on a list of nodes. """
+    adjacent = get_adjacent_terrain(board, node)
+    resources = [terrain['terrain_type'] for terrain in board.terrain if terrain['id'] in adjacent  if terrain['terrain_type'] != TerrainConstants.DESERT]
+    dices = [terrain['probability'] for terrain in board.terrain if terrain['id'] in adjacent if terrain['terrain_type'] != TerrainConstants.DESERT]
+    # print("adjacent", adjacent, "resources", resources, "dices", dices)
+    odds = [dice_odds[dice] for dice in dices]
+
+
+
+    terrain = [0., 0., 0., 0., 0.]
+    for resource, odd in zip(resources, odds):
+        if resource == TerrainConstants.DESERT:
+            continue
+        terrain[resource] += odd
+
+    return terrain
+
+    

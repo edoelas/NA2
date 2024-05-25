@@ -820,7 +820,7 @@ class GameManager:
             commerce_phase_object['harbor_trade'] = False
 
             if self.agent_manager.players[player_id]['resources'].resources.has_this_more_materials(
-                    commerce_response.gives):
+                    commerce_response.receives):
                 commerce_phase_object['inviable'] = False
                 answer_object = self.send_trade_to_everyone(commerce_response)
                 commerce_phase_object['answers'] = answer_object

@@ -25,6 +25,7 @@ class EdoAgent(AgentInterface):
             "build_city",
             "build_city",
         ]
+
         self.traded = False
 
     def get_mat(self):
@@ -93,8 +94,6 @@ class EdoAgent(AgentInterface):
         return None
 
     def on_commerce_phase(self):
-        if self.traded:
-            return None
 
         # TODO: comercion con banca
         # if self.hand.resources.cereal >= 4:
@@ -120,8 +119,7 @@ class EdoAgent(AgentInterface):
         receives = index_to_mat(needed_index)
         _receives = Materials(*receives)
 
-        self.traded = True
-        # print(f"({self.turn_counter}) {self.goals[0]}: {gives} -> {receives}")
+        # print(f"({self.turn_counter}) {self.goals[0]}: {receives} -> {gives}")
         return TradeOffer(_receives, _gives)
 
     def on_build_phase(self, board_instance):
@@ -166,8 +164,12 @@ class EdoAgent(AgentInterface):
 
         return None
 
+    # TODO: comprabar recursos de la primera selección
     def on_game_start(self, board_instance):
-        return super().on_game_start(board_instance)
+        free = get_free_nodes(board_instance)
+        sorted_free = sorted(free, key=lambda x: get_node_resources(board_instance, x), reverse=True)
+        adjacent = board_instance.__get_adjacent_nodes__(sorted_free[0])
+        return (sorted_free[0], adjacent[0])
 
     def on_monopoly_card_use(self):
         material = random.randint(0, 4)
