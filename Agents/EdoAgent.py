@@ -37,7 +37,6 @@ class EdoAgent(AgentInterface):
     def get_mat(self):
         return materials_to_mat(self.hand.resources)
 
-    #TODO: mejorar ofertas
     def on_commerce_phase(self):
         for i in range(len(self.goals)):
             excess, needed = create_exchange(self.get_mat(), self.goals[:i])
@@ -57,8 +56,6 @@ class EdoAgent(AgentInterface):
             gives = madd(gives, gives_2)
         _gives = Materials(*gives)
 
-
-
         needed_index = weighted_material_choice(needed)
         receives = index_to_mat(needed_index)
         _receives = Materials(*receives)
@@ -66,7 +63,6 @@ class EdoAgent(AgentInterface):
         # print(f"({self.turn_counter}) {self.goals[0]}: {receives} -> {gives}")
         return TradeOffer(_receives, _gives)
 
-    # TODO: revisar
     def on_trade_offer(self, board_instance, incoming_trade_offer=TradeOffer(), player_making_offer=int):
         
         receives = materials_to_mat(incoming_trade_offer.receives)
@@ -87,7 +83,6 @@ class EdoAgent(AgentInterface):
 
         return TradeOffer(incoming_trade_offer.receives, mat_to_materials(gives))
 
-    # DONE
     def on_turn_start(self):
         self.traded = False
         self.turn_counter += 1
@@ -116,7 +111,6 @@ class EdoAgent(AgentInterface):
 
         return None
 
-    # DONE
     def on_having_more_than_7_materials_when_thief_is_called(self):
         excess_count_rule = int(floor(self.hand.get_total()/2))
         excess = excess_materials(self.get_mat(), self.goals[:1])
@@ -126,21 +120,18 @@ class EdoAgent(AgentInterface):
             self.hand.remove_material(max_index, 1)
         return self.hand
 
-    # DONE
     def on_moving_thief(self):
         town_nodes = get_town_nodes(self.board, self.id)
         terrain_nodes = [get_adjacent_terrain(self.board, node) for node in town_nodes]
         others_terrain = set(range(18)) - set(itertools.chain(*terrain_nodes))
         return {'terrain': random.choice(list(others_terrain)), 'player': random.choice(list({0,1,2,3}-{self.id}))}
 
-    # DONE
     def on_turn_end(self):
         card = get_development_card(self.development_cards_hand.check_hand(), Dcc.ROAD_BUILDING_EFFECT)
         if card:
             return self.development_cards_hand.select_card_by_id(card)
         return None
 
-    # TODO: 
     def on_build_phase(self, board_instance):
         self.board = board_instance
 
@@ -152,18 +143,18 @@ class EdoAgent(AgentInterface):
         if goal == "build_town" and self.hand.resources.has_this_more_materials('town'):
             valid_nodes = self.board.valid_town_nodes(self.id)
             if len(valid_nodes):
-                # TODO: mejorar selección
-                town_node = random.randint(0, len(valid_nodes) - 1)
+                node_resources = [get_node_resources(board_instance, node) for node in valid_nodes]
+                sorted_nodes = [x for _, x in sorted(zip(node_resources, valid_nodes), key=lambda pair: pair[0])]
                 self.goals.remove(goal)
-                return {'building': BuildConstants.TOWN, 'node_id': valid_nodes[town_node]}
+                return {'building': BuildConstants.TOWN, 'node_id': sorted_nodes[0]}
             
         elif goal == "build_city" and self.hand.resources.has_this_more_materials('city'):
             valid_nodes = self.board.valid_city_nodes(self.id)
-            # TODO: mejorar selección
             if len(valid_nodes):
-                city_node = random.randint(0, len(valid_nodes) - 1)
+                node_resources = [get_node_resources(board_instance, node) for node in valid_nodes]
+                sorted_nodes = [x for _, x in sorted(zip(node_resources, valid_nodes), key=lambda pair: pair[0])]
                 self.goals.remove(goal)
-                return {'building': BuildConstants.CITY, 'node_id': valid_nodes[city_node]}
+                return {'building': BuildConstants.CITY, 'node_id': sorted_nodes[0]}
         
         elif goal == "build_road" and self.hand.resources.has_this_more_materials('road'):
             road_ends = get_road_ends(self.board, self.id)
@@ -189,7 +180,6 @@ class EdoAgent(AgentInterface):
 
         return None
 
-    #DONE
     def on_game_start(self, board_instance):
         free = get_free_nodes(board_instance)
         current_town_nodes = get_town_nodes(board_instance, self.id)
@@ -203,13 +193,11 @@ class EdoAgent(AgentInterface):
         adjacent = board_instance.__get_adjacent_nodes__(sorted_free[0]) #TODO: mejorable
         return (sorted_free[0], adjacent[0])
 
-    #DONE
     def on_monopoly_card_use(self):
         excess, needed = create_exchange(self.get_mat(), self.goals)
         max_index = needed.index(max(needed))
         return max_index
 
-    #DONE
     def on_road_building_card_use(self):
         # esto es muy cutre
         ret = None
@@ -248,7 +236,6 @@ class EdoAgent(AgentInterface):
             
         return ret
 
-    #DONE
     def on_year_of_plenty_card_use(self):
         for g in range(len(self.goals)):
             excess, needed = create_exchange(self.get_mat(), self.goals[:g])
