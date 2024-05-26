@@ -37,17 +37,55 @@ class EdoAgent(AgentInterface):
     def get_mat(self):
         return materials_to_mat(self.hand.resources)
 
+    #TODO: mejorar ofertas
+    def on_commerce_phase(self):
+        for i in range(len(self.goals)):
+            excess, needed = create_exchange(self.get_mat(), self.goals[:i])
+            if sum(needed) > 0 and sum(excess) > 0:
+                break
+        
+        if sum(needed) == 0 or sum(excess) == 0:
+            return None
+        
+        excess_index = weighted_material_choice(excess)
+        gives = index_to_mat(excess_index)
+        excess = msub(excess, gives)
+
+        if random.randint(0, 1) and sum(excess) > 0:
+            excess_index_2 = weighted_material_choice(excess)
+            gives_2 = index_to_mat(excess_index_2)
+            gives = madd(gives, gives_2)
+        _gives = Materials(*gives)
 
 
-    # TODO: P1 
+
+        needed_index = weighted_material_choice(needed)
+        receives = index_to_mat(needed_index)
+        _receives = Materials(*receives)
+
+        # print(f"({self.turn_counter}) {self.goals[0]}: {receives} -> {gives}")
+        return TradeOffer(_receives, _gives)
+
+    # TODO: revisar
     def on_trade_offer(self, board_instance, incoming_trade_offer=TradeOffer(), player_making_offer=int):
-        # goal_index = 1
-        # excess, needed = create_exchange(self.get_mat(), self.goals[:goal_index])
-        # while sum(excess) == 0 or sum(needed) == 0:
-        #     goal_index += 1
-        #     excess, needed = create_exchange(self.get_mat(), self.goals[:goal_index])
+        
+        receives = materials_to_mat(incoming_trade_offer.receives)
+        gives = materials_to_mat(incoming_trade_offer.gives)
 
-        return False
+        if sum(gives) < sum(receives):
+            return False
+
+        excess, needed = create_exchange(self.get_mat(), self.goals[:2])
+        
+        if sum(excess) == 0:
+            return False
+
+        if sum(mpos(msub(needed, receives))) > 0:
+            return False 
+
+        gives = mpos(msub(gives, needed))
+
+        return TradeOffer(incoming_trade_offer.receives, mat_to_materials(gives))
 
     # DONE
     def on_turn_start(self):
@@ -102,28 +140,7 @@ class EdoAgent(AgentInterface):
             return self.development_cards_hand.select_card_by_id(card)
         return None
 
-    #TODO: mejorar ofertas
-    def on_commerce_phase(self):
-        # TODO: comercion con banca
-        for i in range(len(self.goals)):
-            excess, needed = create_exchange(self.get_mat(), self.goals[:i])
-            if sum(needed) > 0 and sum(excess) > 0:
-                break
-        
-        if sum(needed) == 0 or sum(excess) == 0:
-            return None
-        
-        excess_index = weighted_material_choice(excess)
-        gives = index_to_mat(excess_index)
-        _gives = Materials(*gives)
-
-        needed_index = weighted_material_choice(needed)
-        receives = index_to_mat(needed_index)
-        _receives = Materials(*receives)
-
-        # print(f"({self.turn_counter}) {self.goals[0]}: {receives} -> {gives}")
-        return TradeOffer(_receives, _gives)
-
+    # TODO: 
     def on_build_phase(self, board_instance):
         self.board = board_instance
 
@@ -148,12 +165,18 @@ class EdoAgent(AgentInterface):
                 self.goals.remove(goal)
                 return {'building': BuildConstants.CITY, 'node_id': valid_nodes[city_node]}
         
-        # TODO: se puede mejorar escogiendo en base a los recursos
         elif goal == "build_road" and self.hand.resources.has_this_more_materials('road'):
             road_ends = get_road_ends(self.board, self.id)
             for end in road_ends:
                 adjacent_roads = get_adjacent_road(self.board, end, self.id)
+                best_road = None
+                best_materials = Mat(0, 0, 0, 0, 0)
                 for adjacent in adjacent_roads:
+                    materials = get_node_resources(self.board, adjacent['finishing_node'])
+                    if sum(materials) > sum(best_materials):
+                        best_materials = materials
+                        best_road = adjacent
+                if best_road:
                     self.goals.remove(goal)
                     return {'building': BuildConstants.ROAD,
                             'node_id': adjacent['starting_node'],
@@ -171,14 +194,13 @@ class EdoAgent(AgentInterface):
         free = get_free_nodes(board_instance)
         current_town_nodes = get_town_nodes(board_instance, self.id)
         current_resources = list(Mat(0, 0, 0, 0, 0))
+        node_resources = [get_node_resources(board_instance, node) for node in free]
         if current_town_nodes:
             current_resources = reduce(lambda x, y: madd(x,y), [get_node_resources(board_instance, node) for node in current_town_nodes])
-        node_resources = [get_node_resources(board_instance, node) for node in free]
-        added_node_resources = [madd(x, current_resources) for x in node_resources]
-        log_node_resources = [sum([log2(x+1) for x in node]) for node in added_node_resources]
-        sorted_free = [x for _, x in sorted(zip(log_node_resources, free), key=lambda pair: pair[0])]
-        # sorted_free = [x for _, x in sorted(zip(node_resources, free), key=lambda pair: pair[0])]
-        adjacent = board_instance.__get_adjacent_nodes__(sorted_free[0])
+        node_resources = [madd(x, current_resources) for x in node_resources]
+        node_resources = [sum([log2(x+1) for x in node]) for node in node_resources]
+        sorted_free = [x for _, x in sorted(zip(node_resources, free), key=lambda pair: pair[0])]
+        adjacent = board_instance.__get_adjacent_nodes__(sorted_free[0]) #TODO: mejorable
         return (sorted_free[0], adjacent[0])
 
     #DONE
@@ -187,18 +209,44 @@ class EdoAgent(AgentInterface):
         max_index = needed.index(max(needed))
         return max_index
 
-    # TODO:
-    # noinspection DuplicatedCode
+    #DONE
     def on_road_building_card_use(self):
-        # road_ends = get_road_ends(self.board, self.id)
-        # for end in road_ends:
-        #     adjacent_roads = get_adjacent_road(self.board, end, self.id)
-        #     adjacent = random.choice(adjacent_roads)
-        # return {
-        #     'node_id': adjacent['starting_node'], 'road_to': adjacent['finishing_node'],
-        #     'node_id_2': adjacent['starting_node'], 'road_to_2': adjacent['finishing_node']
-        # }
-    return None
+        # esto es muy cutre
+        ret = None
+        road_ends = get_road_ends(self.board, self.id)
+        for end in road_ends:
+            adjacent_roads = get_adjacent_road(self.board, end, self.id)
+            best_road = None
+            best_materials = Mat(0, 0, 0, 0, 0)
+            for adjacent in adjacent_roads:
+                materials = get_node_resources(self.board, adjacent['finishing_node'])
+                if sum(materials) > sum(best_materials):
+                    best_materials = materials
+                    best_road = adjacent
+            if best_road:
+                ret = {'node_id': best_road['starting_node'],
+                        'road_to': best_road['finishing_node']}
+                break
+            else:
+                return None
+
+        road_ends.remove(best_road['starting_node'])
+        road_ends.append(best_road['finishing_node'])
+        for end in road_ends:
+            adjacent_roads = get_adjacent_road(self.board, end, self.id)
+            best_road = None
+            best_materials = Mat(0, 0, 0, 0, 0)
+            for adjacent in adjacent_roads:
+                materials = get_node_resources(self.board, adjacent['finishing_node'])
+                if sum(materials) > sum(best_materials):
+                    best_materials = materials
+                    best_road = adjacent
+            if best_road:
+                ret.update({'node_id_2': best_road['starting_node'],
+                        'road_to_2': best_road['finishing_node']})
+                break
+            
+        return ret
 
     #DONE
     def on_year_of_plenty_card_use(self):

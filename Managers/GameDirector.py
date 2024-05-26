@@ -245,7 +245,8 @@ class GameDirector:
         game_object = {}
         winner = False
         while not winner:
-            if self.game_manager.get_round() > 500:
+            if self.game_manager.get_round() > 1000:
+                print('Game (' + str(game_number) + ') ended in a draw')
                 break
             game_object['round_' + str(self.game_manager.get_round())], winner = self.round_start(winner)
             self.game_manager.set_round(self.game_manager.get_round() + 1)
