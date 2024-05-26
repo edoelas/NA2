@@ -77,11 +77,10 @@ class EdoAgent(AgentInterface):
             return False
 
         if sum(mpos(msub(needed, receives))) > 0:
-            return False 
-
-        gives = mpos(msub(gives, needed))
-
-        return TradeOffer(incoming_trade_offer.receives, mat_to_materials(gives))
+            receives = mpos(msub(needed, receives))
+            return TradeOffer(mat_to_materials(receives),incoming_trade_offer.gives)
+        
+        return True
 
     def on_turn_start(self):
         self.traded = False
